@@ -1,20 +1,24 @@
 import flask
 from flask import request, jsonify, abort, g
 import sqlite3
+from redis import Redis
+from rq import Queue
+
+from insertDb import insertQueue
+
+q = Queue(connection=Redis())
 
 app = flask.Flask(__name__)
-app.config.from_envvar('APP_CONFIG')
-
+#app.config.from_envvar('APP_CONFIG')
 
 def make_dicts(cursor, row):
     return dict((cursor.description[idx][0], value)
                 for idx, value in enumerate(row))
 
-
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(app.config['DATABASE'])
+        db = g._database = sqlite3.connect('../mockroblog.db')
         db.row_factory = make_dicts
     return db
 
@@ -44,15 +48,14 @@ def getPublicTimeline():
     app.logger.debug('getPublicTimeline()')
     return jsonify([])
 
-
 def getUserTimeline(username):
     app.logger.debug(f'getUserTimeline(%r)', username)
 
-
-def postTweet(username, text):
-    app.logger.debug(f'postTweet(%r, %r)', username, text)
-
-
+@app.route('/post_tweet', methods=['POST'])
+def postTweet(username,text):
+    data = request.data
+    q.enqueue(insertQueue,data)      
+    
 @app.route('/<string:username>/', methods=['GET', 'POST'])
 def userTimeline(username):
     if request.method == 'GET':
@@ -65,3 +68,6 @@ def userTimeline(username):
             return jsonify(), 201
         else:
             return jsonify(), 400
+
+if __name__ == '__main__':
+    app.run(debug=True)

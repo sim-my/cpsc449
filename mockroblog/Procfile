@@ -1,2 +1,2 @@
-sandman: sandman2ctl -p $PORT sqlite+pysqlite:///mockroblog.db
-datasette: datasette -p $PORT --reload mockroblog.db
+sandman: sandman2ctl -p 5001 sqlite+pysqlite:///mockroblog.db
+datasette: datasette --reload mockroblog.db
