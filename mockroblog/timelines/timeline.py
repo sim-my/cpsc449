@@ -1,12 +1,15 @@
 import flask
 from flask import request, jsonify, abort, g
 import sqlite3
-from redis import Redis
+import redis
 from rq import Queue
-
+import json
 from insertDb import insertQueue
+from analysis import hashtagAnalysis
 
-q = Queue(connection=Redis())
+q = Queue(connection=redis.Redis())
+
+rdb = redis.Redis(host='localhost', port=6379, db=0)
 
 app = flask.Flask(__name__)
 #app.config.from_envvar('APP_CONFIG')
@@ -22,6 +25,12 @@ def get_db():
         db.row_factory = make_dicts
     return db
 
+@app.route('/trending')
+def trendingHashtag():
+    result = {}  
+    for key, score in rdb.zrevrange('hashtag', 0, 24, 'withscores'):
+        result[str(key,encoding='UTF-8')] = score
+    return result
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -54,7 +63,8 @@ def getUserTimeline(username):
 @app.route('/post_tweet', methods=['POST'])
 def postTweet(username,text):
     data = request.data
-    q.enqueue(insertQueue,data)      
+    q.enqueue(insertQueue, data)      
+    q.enqueue(hashtagAnalysis, data)
     
 @app.route('/<string:username>/', methods=['GET', 'POST'])
 def userTimeline(username):
@@ -71,3 +81,4 @@ def userTimeline(username):
 
 if __name__ == '__main__':
     app.run(debug=True)
+

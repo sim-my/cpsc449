@@ -1,5 +1,6 @@
 import sqlite3
 import json
+
 def insertQueue(data):
     final_data = json.loads(data)
     user_id = final_data['user_id']
